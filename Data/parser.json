@@ -1,0 +1,37 @@
+{
+  "VALID_PARSE": {
+    "HOSTNAME": "^[a-zA-Z0-9\\-_]+$",
+    "IPADDR": "^(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}$",
+    "USERNAME": "^[a-zA-Z0-9\\-_]+$",
+    "PASSWORD": "^[a-zA-Z0-9!@#$%^*+=-]+$",
+    "ENABLE": "^[a-zA-Z0-9!@#$%^*+=-]+$",
+    "PLATFORM": "CISCO_XE|CISCO_XR|CISCO_NXOS|CISCO_IOS|CISCO_WLC_AIR|CISCO_WLC_CAT"
+  },
+  "INIT_PARSE": {
+    "CISCO_XE": {
+      "VERSION": "Version (\\d+.\\d+.\\w+)",
+      "SERIAL_NUMBER": "System\\sSerial\\sNumber\\s+:\\s([A-Z0-9]+)",
+      "PID": "Model\\sNumber\\s+:\\s([A-Z0-9-]+)"
+    },
+    "CISCO_NXOS": {
+      "VERSION": "NXOS: version ([\\d\\.\\(\\)]+)",
+      "SERIAL_NUMBER": "cisco\\sNexus\\d{4}\\s([A-Z0-9-]+)",
+      "PID": "Model\\sNumber\\s+:\\s([A-Z0-9-]+)"
+    },
+    "CISCO_IOS": {
+      "VERSION": "Version ([\\d.\\(\\)\\w]+)",
+      "SERIAL_NUMBER": "System\\sserial\\snumber\\s+:\\s([A-Z0-9]+)",
+      "PID": "Model\\snumber\\s+:\\s([A-Z0-9-]+)"
+    },
+    "CISCO_WLC_AIR": {
+      "VERSION": "Product Version.................................. ([\\d.]+)",
+      "SERIAL_NUMBER": "Product Name..................................... ([a-zA-Z]+)",
+      "PID": "Product Name..................................... ([a-zA-Z]+)"
+    },
+    "CISCO_WLC_CAT": {
+      "VERSION": "Version (\\d+.\\d+.\\w+)",
+      "SERIAL_NUMBER": "System\\sSerial\\sNumber\\s+:\\s([A-Z0-9]+)",
+      "PID": "Model\\sNumber\\s+:\\s([A-Z0-9-]+)"
+    }
+  }
+}
