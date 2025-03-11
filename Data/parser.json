@@ -1,10 +1,10 @@
 {
   "VALID_PARSE": {
-    "HOSTNAME": "^[a-zA-Z0-9\\-_\\.]+$",
+    "HOSTNAME": "^[a-zA-Z0-9\\-_\\.#]+$",
     "IPADDR": "^(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}$",
     "USERNAME": "^[a-zA-Z0-9\\-_]+$",
-    "PASSWORD": "^[a-zA-Z0-9!@#$%^*+=-]+$",
-    "ENABLE": "^[a-zA-Z0-9!@#$%^*+=-]+$",
+    "PASSWORD": "^[a-zA-Z0-9\\(\\)!@#$%^*+=-]+$",
+    "ENABLE": "^[a-zA-Z0-9\\(\\)!@#$%^*+=-]+$",
     "PLATFORM": "CISCO_XE|CISCO_XR|CISCO_NXOS|CISCO_IOS|CISCO_WLC_AIR|CISCO_WLC_CAT"
   },
   "INIT_PARSE": {

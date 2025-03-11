@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtCore import QThreadPool, QRunnable, pyqtSignal, QObject, Qt
 
-from netmiko import ConnectHandler
+from netmiko import ConnectHandler, SSHDetect
 from netmiko.exceptions import NetmikoTimeoutException, AuthenticationException, SSHException
 
 if getattr(sys, 'frozen', False):
@@ -89,7 +89,6 @@ class AppModel:
             self.is_valid_username(row['USERNAME']),
             self.is_valid_password(row['PASSWORD']),
             self.is_valid_enable(row['ENABLE']),
-            self.is_valid_platform(row['PLATFORM']),
         ])
 
     @staticmethod
@@ -143,36 +142,42 @@ class Worker(QRunnable):
         username = self.data[DEVICE_FORM["USERNAME"]]
         password = self.data[DEVICE_FORM["PASSWORD"]]
         enable = self.data[DEVICE_FORM["ENABLE"]]
-        platform = self.data[DEVICE_FORM["PLATFORM"]]
+        # platform = self.data[DEVICE_FORM["PLATFORM"]]
 
-        commands = CMD_JSON[platform]
+        # commands = CMD_JSON[platform]
 
-        if platform == "CISCO_XE":
-            dev_type = "cisco_xe"
-        elif platform == "CISCO_NXOS":
-            dev_type = "cisco_xe"
-        elif platform == "CISCO_WLC_AIR":
-            dev_type = "cisco_wlc"
-        elif platform == "CISCO_WLC_CAT":
-            dev_type = "cisco_xe"
-        elif platform == "CISCO_IOS":
-            dev_type = "cisco_ios"
-        else:
-            dev_type = "cisco_ios"
+        # if platform == "CISCO_XE":
+        #     dev_type = "cisco_xe"
+        # elif platform == "CISCO_NXOS":
+        #     dev_type = "cisco_xe"
+        # elif platform == "CISCO_WLC_AIR":
+        #     dev_type = "cisco_wlc"
+        # elif platform == "CISCO_WLC_CAT":
+        #     dev_type = "cisco_xe"
+        # elif platform == "CISCO_IOS":
+        #     dev_type = "cisco_ios"
+        # else:
+        #     dev_type = "cisco_ios"
 
         try:
             target_device = {
-                'device_type': dev_type,
+                'device_type': 'autodetect',
                 'host': ipaddr,
                 'username': username,
                 'password': password,
                 'secret': enable,
                 'port': int(port),
+                "fast_cli": True,
+                "timeout": 5
             }
 
             try:
-                ssh = ConnectHandler(**target_device)
-                ssh.enable(enable_pattern="#")
+                guesser = SSHDetect(**target_device)
+                platform = guesser.autodetect()
+                print(f"{hostname},{ipaddr},{platform}")
+
+                # ssh = ConnectHandler(**target_device)
+                # ssh.enable(enable_pattern="#")
 
             except AuthenticationException:
                 self.signals.log.emit(f"Authentication Failed: {hostname} ({ipaddr}:{port})")
@@ -196,64 +201,9 @@ class Worker(QRunnable):
                 return
 
             result = {}
-            if platform == "CISCO_XE":
-                init_cmd = INIT_CMD["CISCO_XE"]
-                init_parse = INIT_PARSE["CISCO_XE"]
-            elif platform == "CISCO_NXOS":
-                init_cmd = INIT_CMD["CISCO_NXOS"]
-                init_parse = INIT_PARSE["CISCO_NXOS"]
-            elif platform == "CISCO_IOS":
-                init_cmd = INIT_CMD["CISCO_IOS"]
-                init_parse = INIT_PARSE["CISCO_IOS"]
-            elif platform == "CISCO_WLC_AIR":
-                init_cmd = INIT_CMD["CISCO_WLC_AIR"]
-                init_parse = INIT_PARSE["CISCO_WLC_AIR"]
-            elif platform == "CISCO_WLC_CAT":
-                init_cmd = INIT_CMD["CISCO_WLC_CAT"]
-                init_parse = INIT_PARSE["CISCO_WLC_CAT"]
-            else:
-                self.signals.log.emit(f"Unsupported Platform: {hostname} ({ipaddr}:{port})")
-                self.signals.logfile.emit(
-                    f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Unsupported Platform")
-                raise Exception("Unsupported Platform")
-
-            init_data = ssh.send_command(init_cmd)
             result["HOSTNAME"] = hostname
             result["IPADDR"] = ipaddr
             result["PLATFORM"] = platform
-
-            if bool(re.search(init_parse["VERSION"], init_data)):
-                result["VERSION"] = re.search(init_parse["VERSION"], init_data).group(1)
-            else:
-                result["VERSION"] = ""
-
-            if bool(re.search(init_parse["SERIAL_NUMBER"], init_data)):
-                result["SERIAL_NUMBER"] = re.search(init_parse["SERIAL_NUMBER"], init_data).group(1)
-            else:
-                result["SERIAL_NUMBER"] = ""
-
-            if bool(re.search(init_parse["PID"], init_data)):
-                result["PID"] = re.search(init_parse["PID"], init_data).group(1)
-            else:
-                result["PID"] = ""
-
-            for command in commands:
-                tmp = ssh.send_command(command)
-                if tmp:
-                    result[command] = tmp
-
-            if platform == "CISCO_IOS":
-                ssh.send_command("write memory")
-            elif platform == "CISCO_XE":
-                ssh.send_command("write memory")
-            elif platform == "CISCO_NXOS":
-                ssh.send_command("copy running-config startup-config")
-            elif platform == "CISCO_WLC_AIR":
-                output = ssh.send_command_timing('save config')
-                if "save" in output.lower():
-                    ssh.send_command_timing("y")  # 'y' 입력
-            elif platform == "CISCO_WLC_CAT":
-                ssh.send_command("write memory")
 
             self.make_report(result)
             self.signals.log.emit(f"Success: {hostname} ({ipaddr}:{port})")
@@ -268,21 +218,12 @@ class Worker(QRunnable):
     def make_report(data):
         now = time.localtime()
         cur_date = "%04d%02d%02d" % (now.tm_year, now.tm_mon, now.tm_mday)
-        result_path = os.getcwd() + f"/Collector_{cur_date}_{data['HOSTNAME']}({data['IPADDR']}).txt"
+        result_path = os.getcwd() + f"/Collector_FindPlatform.csv"
+        print(data)
         try:
-            with open(result_path, "w") as outputFile:
-                outputFile.write(f'HOSTNAME: {data.pop("HOSTNAME")}\n'
-                                 f'IPADDR: {data.pop("IPADDR")}\n'
-                                 f'PLATFORM: {data.pop("PLATFORM")}\n'
-                                 f'VERSION: {data.pop("VERSION")}\n'
-                                 f'SERIAL_NUMBER: {data.pop("SERIAL_NUMBER")}\n'
-                                 f'PID: {data.pop("PID")}\n\n'
-                                 )
-                for command, contents in data.items():
-                    outputFile.write(f'+ COMMAND: {command}\n\n'
-                                     f'============ START_CONTENTS ============\n'
-                                     f'{contents}\n'
-                                     f'============ END_CONTENTS ==============\n\n\n\n')
+            with open(result_path, "a") as outputFile:
+                outputFile.write(f'{data["HOSTNAME"]},{data["IPADDR"]},{data["PLATFORM"]}\n')
+
         except Exception as e:
             print(e)
 
