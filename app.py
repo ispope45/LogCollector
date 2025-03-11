@@ -11,10 +11,9 @@ from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtCore import QThreadPool, QRunnable, pyqtSignal, QObject, Qt
 
 from netmiko import ConnectHandler
-from netmiko.exceptions import NetmikoTimeoutException, AuthenticationException
+from netmiko.exceptions import NetmikoTimeoutException, AuthenticationException, SSHException
 
 if getattr(sys, 'frozen', False):
-    # PyInstaller로 빌드된 실행 파일 내에서 파일 경로 찾기
     FILE_DIR = sys._MEIPASS
 else:
     # 개발 환경에서 파일 경로 찾기
@@ -50,8 +49,9 @@ class AppModel:
     def excel_to_df(self, excel_src):
         print("start excel_to_df")
         try:
-            df = pd.read_excel(excel_src)
+            df = pd.read_excel(excel_src, usecols=range(0, 7))
             print(f"read dataframe \n {df}")
+            print(f"{df.columns}\n{DEVICE_FORM.keys()}")
             if len(df.columns) == len(DEVICE_FORM.keys()):
                 df.columns = DEVICE_FORM.keys()
                 invalid_index, data = self.valid_dataframe(df)
@@ -166,15 +166,19 @@ class Worker(QRunnable):
                 ssh.enable(enable_pattern="#")
 
             except AuthenticationException:
-                self.signals.log.emit(f"Authentication Failed: {hostname} ({ipaddr})")
+                self.signals.log.emit(f"Authentication Failed: {hostname} ({ipaddr}:{port})")
                 self.signals.logfile.emit(
                     f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Authentication Failed")
                 return
             except NetmikoTimeoutException:
-                self.signals.log.emit(f"SSH Timeout: {hostname} ({ipaddr})")
+                self.signals.log.emit(f"SSH Timeout: {hostname} ({ipaddr}:{port})")
                 self.signals.logfile.emit(
                     f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,SSH Timeout")
-
+                return
+            except SSHException:
+                self.signals.log.emit(f"SSH Connection Refused: {hostname} ({ipaddr}:{port})")
+                self.signals.logfile.emit(
+                    f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,SSH Connection Refused")
                 return
             except Exception as e:
                 self.signals.log.emit(f"Unknown Error: {hostname} ({ipaddr}) - {e}")
@@ -199,6 +203,9 @@ class Worker(QRunnable):
                 init_cmd = INIT_CMD["CISCO_WLC_CAT"]
                 init_parse = INIT_PARSE["CISCO_WLC_CAT"]
             else:
+                self.signals.log.emit(f"Unsupported Platform: {hostname} ({ipaddr}:{port})")
+                self.signals.logfile.emit(
+                    f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Unsupported Platform")
                 raise Exception("Unsupported Platform")
 
             init_data = ssh.send_command(init_cmd)
@@ -210,10 +217,12 @@ class Worker(QRunnable):
                 result["VERSION"] = re.search(init_parse["VERSION"], init_data).group(1)
             else:
                 result["VERSION"] = ""
+
             if bool(re.search(init_parse["SERIAL_NUMBER"], init_data)):
                 result["SERIAL_NUMBER"] = re.search(init_parse["SERIAL_NUMBER"], init_data).group(1)
             else:
                 result["SERIAL_NUMBER"] = ""
+
             if bool(re.search(init_parse["PID"], init_data)):
                 result["PID"] = re.search(init_parse["PID"], init_data).group(1)
             else:
@@ -224,10 +233,25 @@ class Worker(QRunnable):
                 if tmp:
                     result[command] = tmp
 
+            if platform == "CISCO_IOS":
+                ssh.send_command("write memory")
+            elif platform == "CISCO_XE":
+                ssh.send_command("write memory")
+            elif platform == "CISCO_NXOS":
+                ssh.send_command("copy running-config startup-config")
+            elif platform == "CISCO_WLC_AIR":
+                output = ssh.send_command_timing('save config')
+                if "save" in output.lower():
+                    ssh.send_command_timing("y")  # 'y' 입력
+            elif platform == "CISCO_WLC_CAT":
+                ssh.send_command("write memory")
+
             self.make_report(result)
-            self.signals.log.emit(f"Success: {hostname} ({ipaddr})")
+            self.signals.log.emit(f"Success: {hostname} ({ipaddr}:{port})")
         except Exception as e:
-            self.signals.log.emit(f"Failed: {hostname} ({ipaddr}) - {e}")
+            self.signals.log.emit(f"Failed: {hostname} ({ipaddr}:{port}) - {e}")
+            self.signals.logfile.emit(
+                f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Unknown Error")
         finally:
             self.signals.finished.emit()
 
@@ -246,11 +270,10 @@ class Worker(QRunnable):
                                  f'PID: {data.pop("PID")}\n\n'
                                  )
                 for command, contents in data.items():
-                    outputFile.write(f'========================================\n\n'
-                                     f'+ COMMAND: {command}\n\n'
+                    outputFile.write(f'+ COMMAND: {command}\n\n'
                                      f'============ START_CONTENTS ============\n\n'
                                      f'{contents}\n'
-                                     f'============ END_CONTENTS ==============\n\n\n')
+                                     f'============ END_CONTENTS ==============\n\n\n\n')
         except Exception as e:
             print(e)
 
@@ -420,17 +443,11 @@ class AppController:
         self.current_task_cnt = 0
 
     def on_download_label_click(self, event):
-        """하이퍼링크 클릭 시 파일 저장 대화상자 열기"""
-        # QFileDialog를 사용하여 파일 저장 대화상자 띄우기
-
         file_path, _ = QFileDialog.getSaveFileName(
             self.view, "Save File", "Collector_device_template.xlsx", "XLSX 파일 (*.xlsx)")
 
         if file_path:
             shutil.copy2(TEMPLATE_FILEPATH, file_path)
-            # 사용자가 파일 경로를 선택하면 경로를 텍스트 브라우저에 출력하거나 처리할 수 있음
-            # self.view.text_browser.append(f"File will be saved at: {file_path}")
-            # 여기에 저장 기능을 추가하거나 다른 동작을 할 수 있습니다.
 
     def load_file(self):
         print(f"start load_file")
@@ -439,16 +456,16 @@ class AppController:
         if file_path:
             print(f"read file_path: {file_path}")
             invalid_index, data, result = self.model.excel_to_df(file_path)
-            data_list = data[['HOSTNAME', 'IPADDR', 'PLATFORM']].values.tolist()
-
-            # Device Source database view
-            self.view.table_widget.setRowCount(len(data_list))
-            for row_idx, row_data in enumerate(data_list):
-                self.fill_table_widget(row_data, row_idx)
-
             if result["res"]:
+                data_list = data[['HOSTNAME', 'IPADDR', 'PLATFORM']].values.tolist()
+
+                # Device Source database view
+                self.view.table_widget.setRowCount(len(data_list))
+                for row_idx, row_data in enumerate(data_list):
+                    self.fill_table_widget(row_data, row_idx)
+
                 for index in invalid_index:
-                    self.logging_text(f"Invalid row at index {index}")
+                    self.logging_text(f"Invalid row at index {index + 2}")
                 self.view.line_edit.setText(file_path)
                 self.model.main_df = data
 
