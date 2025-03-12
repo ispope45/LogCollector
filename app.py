@@ -150,7 +150,7 @@ class Worker(QRunnable):
         if platform == "CISCO_XE":
             dev_type = "cisco_xe"
         elif platform == "CISCO_NXOS":
-            dev_type = "cisco_xe"
+            dev_type = "cisco_nxos"
         elif platform == "CISCO_WLC_AIR":
             dev_type = "cisco_wlc"
         elif platform == "CISCO_WLC_CAT":
@@ -161,67 +161,79 @@ class Worker(QRunnable):
             dev_type = "cisco_ios"
 
         try:
-            target_device = {
-                'device_type': dev_type,
-                'host': ipaddr,
-                'username': username,
-                'password': password,
-                'secret': enable,
-                'port': int(port),
-                'conn_timeout': 20
-            }
+            ssh = None  # 🔹 연결 객체 초기화
+            for attempt in range(3):
+                try:
+                    target_device = {
+                        'device_type': dev_type,
+                        'host': ipaddr,
+                        'username': username,
+                        'password': password,
+                        'secret': enable,
+                        'port': int(port),
+                        'conn_timeout': 10,
+                        'global_delay_factor': 2
+                    }
 
-            try:
-                ssh = ConnectHandler(**target_device)
+                    ssh = ConnectHandler(**target_device)
+                    try:
+                        ssh.enable()  # 기본값 사용
+                    except Exception:
+                        ssh.enable(enable_pattern=r"[>#]")  # `>` 또는 `#`을 허용
 
-            except AuthenticationException:
-                self.signals.log.emit(f"Authentication Failed: {hostname} ({ipaddr}:{port})")
-                self.signals.logfile.emit(
-                    f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Authentication Failed")
-                return
-            except NetmikoTimeoutException:
-                self.signals.log.emit(f"SSH Timeout: {hostname} ({ipaddr}:{port})")
-                self.signals.logfile.emit(
-                    f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,SSH Timeout")
-                return
-            except SSHException:
-                self.signals.log.emit(f"SSH Connection Refused: {hostname} ({ipaddr}:{port})")
-                self.signals.logfile.emit(
-                    f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,SSH Connection Refused")
-                return
-            except Exception as e:
-                self.signals.log.emit(f"Unknown Error: {hostname} ({ipaddr}) - {e}")
-                self.signals.logfile.emit(
-                    f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Unknown Error")
-                return
+                    break  # 성공하면 루프 종료
+
+                except NetmikoTimeoutException:
+                    self.signals.log.emit(f"SSH Timeout: {hostname} ({ipaddr}:{port})")
+                    self.signals.logfile.emit(
+                        f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,SSH Timeout")
+                    if attempt < 2:  # 🔹 마지막 시도 전까지만 재시도
+                        time.sleep(5)  # 🔹 5초 대기 후 재시도
+                        continue
+                    else:
+                        raise  # 마지막 시도 실패 시 예외 발생
+
+                except AuthenticationException:
+                    self.signals.log.emit(f"Authentication Failed: {hostname} ({ipaddr}:{port})")
+                    self.signals.logfile.emit(
+                        f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Authentication Failed")
+                    return
+
+                except SSHException:
+                    self.signals.log.emit(f"SSH Connection Refused: {hostname} ({ipaddr}:{port})")
+                    self.signals.logfile.emit(
+                        f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,SSH Connection Refused")
+                    return
+
+                except Exception as e:
+                    self.signals.log.emit(f"Unknown Error: {hostname} ({ipaddr}) - {e}")
+                    self.signals.logfile.emit(
+                        f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed_Unknown,{e}")
+                    return
 
             result = {}
             if platform == "CISCO_XE":
                 init_cmd = INIT_CMD["CISCO_XE"]
                 init_parse = INIT_PARSE["CISCO_XE"]
-                ssh.enable(enable_pattern="#")
             elif platform == "CISCO_NXOS":
                 init_cmd = INIT_CMD["CISCO_NXOS"]
                 init_parse = INIT_PARSE["CISCO_NXOS"]
-                ssh.enable(enable_pattern="#")
             elif platform == "CISCO_IOS":
                 init_cmd = INIT_CMD["CISCO_IOS"]
                 init_parse = INIT_PARSE["CISCO_IOS"]
-                ssh.enable(enable_pattern="#")
             elif platform == "CISCO_WLC_AIR":
                 init_cmd = INIT_CMD["CISCO_WLC_AIR"]
                 init_parse = INIT_PARSE["CISCO_WLC_AIR"]
             elif platform == "CISCO_WLC_CAT":
                 init_cmd = INIT_CMD["CISCO_WLC_CAT"]
                 init_parse = INIT_PARSE["CISCO_WLC_CAT"]
-                ssh.enable(enable_pattern="#")
             else:
                 self.signals.log.emit(f"Unsupported Platform: {hostname} ({ipaddr}:{port})")
                 self.signals.logfile.emit(
                     f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Unsupported Platform")
                 raise Exception("Unsupported Platform")
 
-            init_data = ssh.send_command(init_cmd)
+            init_data = ssh.send_command(init_cmd, delay_factor=1)
             result["HOSTNAME"] = hostname
             result["IPADDR"] = ipaddr
             result["PLATFORM"] = platform
@@ -242,22 +254,22 @@ class Worker(QRunnable):
                 result["PID"] = ""
 
             for command in commands:
-                tmp = ssh.send_command(command, read_timeout=20)
+                tmp = ssh.send_command(command, delay_factor=2)
                 if tmp:
                     result[command] = tmp
 
             if platform == "CISCO_IOS":
-                ssh.send_command("write memory", read_timeout=20)
+                ssh.send_command_timing("write memory", delay_factor=3)
             elif platform == "CISCO_XE":
-                ssh.send_command("write memory", read_timeout=20)
+                ssh.send_command_timing("write memory", delay_factor=3)
             elif platform == "CISCO_NXOS":
-                ssh.send_command("copy running-config startup-config", read_timeout=20)
+                ssh.send_command_timing("copy running-config startup-config", delay_factor=3)
             elif platform == "CISCO_WLC_AIR":
-                output = ssh.send_command_timing('save config')
+                output = ssh.send_command_timing('save config', delay_factor=3)
                 if "save" in output.lower():
                     ssh.send_command_timing("y")  # 'y' 입력
             elif platform == "CISCO_WLC_CAT":
-                ssh.send_command("write memory", read_timeout=20)
+                ssh.send_command_timing("write memory", delay_factor=3)
 
             ssh.disconnect()
 
