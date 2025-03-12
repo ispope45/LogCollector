@@ -168,11 +168,11 @@ class Worker(QRunnable):
                 'password': password,
                 'secret': enable,
                 'port': int(port),
+                'conn_timeout': 20
             }
 
             try:
                 ssh = ConnectHandler(**target_device)
-                ssh.enable(enable_pattern="#")
 
             except AuthenticationException:
                 self.signals.log.emit(f"Authentication Failed: {hostname} ({ipaddr}:{port})")
@@ -199,18 +199,22 @@ class Worker(QRunnable):
             if platform == "CISCO_XE":
                 init_cmd = INIT_CMD["CISCO_XE"]
                 init_parse = INIT_PARSE["CISCO_XE"]
+                ssh.enable(enable_pattern="#")
             elif platform == "CISCO_NXOS":
                 init_cmd = INIT_CMD["CISCO_NXOS"]
                 init_parse = INIT_PARSE["CISCO_NXOS"]
+                ssh.enable(enable_pattern="#")
             elif platform == "CISCO_IOS":
                 init_cmd = INIT_CMD["CISCO_IOS"]
                 init_parse = INIT_PARSE["CISCO_IOS"]
+                ssh.enable(enable_pattern="#")
             elif platform == "CISCO_WLC_AIR":
                 init_cmd = INIT_CMD["CISCO_WLC_AIR"]
                 init_parse = INIT_PARSE["CISCO_WLC_AIR"]
             elif platform == "CISCO_WLC_CAT":
                 init_cmd = INIT_CMD["CISCO_WLC_CAT"]
                 init_parse = INIT_PARSE["CISCO_WLC_CAT"]
+                ssh.enable(enable_pattern="#")
             else:
                 self.signals.log.emit(f"Unsupported Platform: {hostname} ({ipaddr}:{port})")
                 self.signals.logfile.emit(
@@ -238,22 +242,24 @@ class Worker(QRunnable):
                 result["PID"] = ""
 
             for command in commands:
-                tmp = ssh.send_command(command)
+                tmp = ssh.send_command(command, read_timeout=20)
                 if tmp:
                     result[command] = tmp
 
             if platform == "CISCO_IOS":
-                ssh.send_command("write memory")
+                ssh.send_command("write memory", read_timeout=20)
             elif platform == "CISCO_XE":
-                ssh.send_command("write memory")
+                ssh.send_command("write memory", read_timeout=20)
             elif platform == "CISCO_NXOS":
-                ssh.send_command("copy running-config startup-config")
+                ssh.send_command("copy running-config startup-config", read_timeout=20)
             elif platform == "CISCO_WLC_AIR":
                 output = ssh.send_command_timing('save config')
                 if "save" in output.lower():
                     ssh.send_command_timing("y")  # 'y' 입력
             elif platform == "CISCO_WLC_CAT":
-                ssh.send_command("write memory")
+                ssh.send_command("write memory", read_timeout=20)
+
+            ssh.disconnect()
 
             self.make_report(result)
             self.signals.log.emit(f"Success: {hostname} ({ipaddr}:{port})")
@@ -295,12 +301,12 @@ class AppView(QWidget):
         self.setWindowIcon(QIcon(ICON_FILEPATH))
         self.setMinimumSize(685, 600)
 
-        # 💡 메인 레이아웃
+        # 메인 레이아웃
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(15, 15, 15, 15)
         main_layout.setSpacing(12)
 
-        # 📁 Source File (HBoxLayout)
+        # Source File (HBoxLayout)
         source_layout = QHBoxLayout()
         self.label_source_file = QLabel("📂 Source File")
         self.line_edit = QLineEdit()
@@ -311,10 +317,10 @@ class AppView(QWidget):
         source_layout.addWidget(self.line_edit)
         source_layout.addWidget(self.push_button_open)
 
-        # 🔍 Device Source Label
+        # Device Source Label
         self.label_device_source = QLabel("🖥️ Device Source")
 
-        # 📊 장치 목록 테이블
+        # Device list
         self.table_widget = QTableWidget()
         self.table_widget.setColumnCount(4)
         self.table_widget.setHorizontalHeaderLabels(["Idx", "Hostname", "IP Address", "Platform"])
@@ -518,7 +524,9 @@ class AppController:
             worker.signals.logfile.connect(self.logging_file)
             worker.signals.finished.connect(self.task_finished)
 
+            self.thread_pool.setMaxThreadCount(5)
             self.thread_pool.start(worker)  # QThreadPool에서 실행
+            time.sleep(0.1)
 
         # 작업 종료 후 디버깅 로그 추가
         print("All tasks started.")

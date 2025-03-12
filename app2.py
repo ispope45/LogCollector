@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtCore import QThreadPool, QRunnable, pyqtSignal, QObject, Qt
 
-from netmiko import ConnectHandler, SSHDetect
+from netmiko import SSHDetect
 from netmiko.exceptions import NetmikoTimeoutException, AuthenticationException, SSHException
 
 if getattr(sys, 'frozen', False):
@@ -167,8 +167,6 @@ class Worker(QRunnable):
                 'password': password,
                 'secret': enable,
                 'port': int(port),
-                "fast_cli": True,
-                "timeout": 5
             }
 
             try:
@@ -189,15 +187,11 @@ class Worker(QRunnable):
                 self.signals.logfile.emit(
                     f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,SSH Timeout")
                 return
-            except SSHException:
-                self.signals.log.emit(f"SSH Connection Refused: {hostname} ({ipaddr}:{port})")
-                self.signals.logfile.emit(
-                    f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,SSH Connection Refused")
-                return
             except Exception as e:
                 self.signals.log.emit(f"Unknown Error: {hostname} ({ipaddr}) - {e}")
                 self.signals.logfile.emit(
                     f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Unknown Error")
+                print(f"Unknown Error: {hostname} ({ipaddr}) - {e}")
                 return
 
             result = {}
@@ -232,7 +226,7 @@ class AppView(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Collector(v1.0)")
+        self.setWindowTitle("DetectPlatform(test)")
         self.setWindowIcon(QIcon(ICON_FILEPATH))
         self.setMinimumSize(685, 600)
 

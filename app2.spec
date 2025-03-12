@@ -4,7 +4,7 @@
 block_cipher = None
 
 
-a = Analysis(['app.py'],
+a = Analysis(['app2.py'],
              pathex=['D:\\Python\\LogCollector'],
              binaries=[],
              datas=[('Data/*', 'Data'), ('icon.ico', '.')],
@@ -26,7 +26,7 @@ exe = EXE(pyz,
           a.zipfiles,
           a.datas,
           [],
-          name='Collector_V1.1',
+          name='DetectPlatform_test',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,
