@@ -6,6 +6,7 @@
     "CISCO_WLC_AIR": "show sysinfo",
     "CISCO_WLC_CAT": "show version"
   },
+  "EXPECT_STRING": "[#>\\)]",
   "CISCO_XE": [
     "show clock",
     "show running-config",

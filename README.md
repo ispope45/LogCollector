@@ -10,3 +10,9 @@
 - Thread 간 0.1 gap 적용
 - Conn timeout, Read timeout 20초 변경
 - Disconnect Logic 추가
+
+## 20250320 Collector V1.2
+- MaxThread 8개 고정
+- send_command -> execute_command 로 변경
+  - send_command read_timeout 60초 적용 
+  - retry, delay 적용

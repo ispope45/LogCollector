@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtCore import QThreadPool, QRunnable, pyqtSignal, QObject, Qt
 
-from netmiko import ConnectHandler
+from netmiko import ConnectHandler, ReadTimeout
 from netmiko.exceptions import NetmikoTimeoutException, AuthenticationException, SSHException
 
 if getattr(sys, 'frozen', False):
@@ -177,6 +177,8 @@ class Worker(QRunnable):
                         'global_delay_factor': 2
                     }
 
+                    # print(target_device)
+
                     ssh = ConnectHandler(**target_device)
                     try:
                         ssh.enable()  # 기본값 사용
@@ -235,7 +237,8 @@ class Worker(QRunnable):
                     f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Unsupported Platform")
                 raise Exception("Unsupported Platform")
 
-            init_data = ssh.send_command(init_cmd, delay_factor=1)
+            init_data = self.execute_command(ssh, init_cmd)
+            # print(f"{hostname} : {init_data}")
 
             result["INDEX"] = index
             result["HOSTNAME"] = hostname
@@ -258,7 +261,7 @@ class Worker(QRunnable):
                 result["PID"] = ""
 
             for command in commands:
-                tmp = ssh.send_command(command, delay_factor=2)
+                tmp = self.execute_command(ssh, command)
                 if tmp:
                     result[command] = tmp
 
@@ -287,10 +290,27 @@ class Worker(QRunnable):
             self.signals.finished.emit()
 
     @staticmethod
+    def execute_command(ssh, command, retries=3, delay=5):
+        """특정 명령어 실행 후 오류 발생 시 재시도"""
+        for attempt in range(retries):
+            try:
+                print(f"🔹 Attempt {attempt + 1}: Executing '{command}'")
+                output = ssh.send_command(command, delay_factor=5, read_timeout=60)
+                print(f"✅ Command '{command}' executed successfully!")
+                return output
+            except ReadTimeout:
+                print(f"⏳ Timeout Error: {ssh.host} '{command}' - Retrying in {delay} seconds...")
+                time.sleep(delay)
+            except Exception as e:
+                print(f"❌ Error executing {ssh.host} '{command}': {e}")
+                break  # 다른 오류 발생 시 재시도 중단
+        return None  # 최종 실패 시 None 반환
+
+    @staticmethod
     def make_report(data):
         now = time.localtime()
         cur_date = "%04d%02d%02d" % (now.tm_year, now.tm_mon, now.tm_mday)
-        result_path = os.getcwd() + f"/Collector{str(data['index'])}_{cur_date}_{data['HOSTNAME']}({data['IPADDR']}).txt"
+        result_path = os.getcwd() + f"/Collector{str(data['INDEX'])}_{cur_date}_{data['HOSTNAME']}({data['IPADDR']}).txt"
         try:
             with open(result_path, "w") as outputFile:
                 outputFile.write(f'HOSTNAME: {data.pop("HOSTNAME")}\n'
@@ -339,7 +359,7 @@ class AppView(QWidget):
         # Device list
         self.table_widget = QTableWidget()
         self.table_widget.setColumnCount(4)
-        self.table_widget.setHorizontalHeaderLabels(["Idx", "Hostname", "IP Address", "Platform"])
+        self.table_widget.setHorizontalHeaderLabels(["Index", "Hostname", "IP Address", "Platform"])
         self.table_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
         header = self.table_widget.horizontalHeader()
@@ -488,12 +508,15 @@ class AppController:
             print(f"read file_path: {file_path}")
             invalid_index, data, result = self.model.excel_to_df(file_path)
             if result["res"]:
-                data_list = data[['HOSTNAME', 'IPADDR', 'PLATFORM']].values.tolist()
+                data_list = data[['INDEX', 'HOSTNAME', 'IPADDR', 'PLATFORM']].values.tolist()
 
                 # Device Source database view
                 self.view.table_widget.setRowCount(len(data_list))
+                # print(data_list)
                 for row_idx, row_data in enumerate(data_list):
+                    # print(f"{row_idx}: {row_data}")
                     self.fill_table_widget(row_data, row_idx)
+                    # self.fill_table_widget(row_data)
 
                 for index in invalid_index:
                     self.logging_text(f"Invalid row at index {index + 2}")
@@ -504,21 +527,15 @@ class AppController:
                 self.show_alert("Invalid file format!")
 
     def fill_table_widget(self, row, row_idx):
-        item = QTableWidgetItem(str(row_idx + 1))
-        font = QFont()
-        font.setPointSize(10)  # 폰트 크기 10으로 설정
-        item.setFont(font)
-        item.setTextAlignment(Qt.AlignCenter)  # 🌟 가운데 정렬 적용
-        item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)  # 수정 불가
-        self.view.table_widget.setItem(row_idx, 0, item)
-
         for col_idx, value in enumerate(row):
-            item = QTableWidgetItem(value)
+            item = QTableWidgetItem(str(value))
             font = QFont()
             font.setPointSize(10)  # 폰트 크기 10으로 설정
             item.setFont(font)
+            if col_idx in [0]:
+                item.setTextAlignment(Qt.AlignCenter)
             item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)  # 수정 불가
-            self.view.table_widget.setItem(row_idx, col_idx + 1, item)
+            self.view.table_widget.setItem(row_idx, col_idx, item)
 
     def run_command(self):
         if len(self.model.main_df) == 0:
@@ -540,7 +557,7 @@ class AppController:
             worker.signals.logfile.connect(self.logging_file)
             worker.signals.finished.connect(self.task_finished)
 
-            self.thread_pool.setMaxThreadCount(5)
+            self.thread_pool.setMaxThreadCount(8)
             self.thread_pool.start(worker)  # QThreadPool에서 실행
             time.sleep(0.1)
 
@@ -575,7 +592,7 @@ class AppController:
         now = time.localtime()
         cur_date = "%04d%02d%02d" % (now.tm_year, now.tm_mon, now.tm_mday)
         cur_time = "%02d:%02d:%02d" % (now.tm_hour, now.tm_min, now.tm_sec)
-        result_path = os.getcwd() + f"/Collector_{cur_date}_logging.csv"
+        result_path = os.getcwd() + f"/Collector_Failed_{cur_date}_logging.csv"
         try:
             with open(result_path, "a") as outputFile:
                 outputFile.write(f"{cur_date}_{cur_time},{data}\n")
