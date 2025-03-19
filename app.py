@@ -32,13 +32,14 @@ VALID_PARSE = PARSE_JSON["VALID_PARSE"]
 INIT_PARSE = PARSE_JSON["INIT_PARSE"]
 
 DEVICE_FORM = {
-    "HOSTNAME":     0,
-    "IPADDR":       1,
-    "PORT":         2,
-    "USERNAME":     3,
-    "PASSWORD":     4,
-    "ENABLE":       5,
-    "PLATFORM":     6
+    "INDEX":        0,
+    "HOSTNAME":     1,
+    "IPADDR":       2,
+    "PORT":         3,
+    "USERNAME":     4,
+    "PASSWORD":     5,
+    "ENABLE":       6,
+    "PLATFORM":     7
 }
 
 
@@ -49,7 +50,7 @@ class AppModel:
     def excel_to_df(self, excel_src):
         print("start excel_to_df")
         try:
-            df = pd.read_excel(excel_src, usecols=range(0, 7))
+            df = pd.read_excel(excel_src, usecols=range(0, 8))
 
             print(f"read dataframe \n {df}")
             print(f"{df.columns}\n{DEVICE_FORM.keys()}")
@@ -137,6 +138,7 @@ class Worker(QRunnable):
         self.parse_data = {}
 
     def run(self):
+        index = self.data[DEVICE_FORM["INDEX"]]
         hostname = self.data[DEVICE_FORM["HOSTNAME"]]
         ipaddr = self.data[DEVICE_FORM["IPADDR"]]
         port = self.data[DEVICE_FORM["PORT"]]
@@ -208,7 +210,7 @@ class Worker(QRunnable):
                 except Exception as e:
                     self.signals.log.emit(f"Unknown Error: {hostname} ({ipaddr}) - {e}")
                     self.signals.logfile.emit(
-                        f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed_Unknown,{e}")
+                        f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,{e}")
                     return
 
             result = {}
@@ -234,6 +236,8 @@ class Worker(QRunnable):
                 raise Exception("Unsupported Platform")
 
             init_data = ssh.send_command(init_cmd, delay_factor=1)
+
+            result["INDEX"] = index
             result["HOSTNAME"] = hostname
             result["IPADDR"] = ipaddr
             result["PLATFORM"] = platform
@@ -278,7 +282,7 @@ class Worker(QRunnable):
         except Exception as e:
             self.signals.log.emit(f"Failed: {hostname} ({ipaddr}:{port}) - {e}")
             self.signals.logfile.emit(
-                f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Unknown Error")
+                f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,{e}")
         finally:
             self.signals.finished.emit()
 
@@ -286,7 +290,7 @@ class Worker(QRunnable):
     def make_report(data):
         now = time.localtime()
         cur_date = "%04d%02d%02d" % (now.tm_year, now.tm_mon, now.tm_mday)
-        result_path = os.getcwd() + f"/Collector_{cur_date}_{data['HOSTNAME']}({data['IPADDR']}).txt"
+        result_path = os.getcwd() + f"/Collector{str(data['index'])}_{cur_date}_{data['HOSTNAME']}({data['IPADDR']}).txt"
         try:
             with open(result_path, "w") as outputFile:
                 outputFile.write(f'HOSTNAME: {data.pop("HOSTNAME")}\n'
