@@ -179,18 +179,42 @@ class Worker(QRunnable):
 
                     # print(target_device)
 
-                    ssh = ConnectHandler(**target_device)
+                    # ssh = ConnectHandler(**target_device)
+                    ssh = ConnectHandler(**target_device, allow_auto_change=False)
+
                     try:
-                        ssh.enable()  # 기본값 사용
-                    except Exception:
-                        ssh.enable(enable_pattern=r"[>#]")  # `>` 또는 `#`을 허용
+                        # print(f"🚀 {device['host']} SSH 접속 시도 중...")
+
+                        ssh = ConnectHandler(**target_device, allow_auto_change=False)
+
+                        # 초기 명령 실행 후 프롬프트 확인
+                        output = ssh.send_command_timing("\n", delay_factor=2)
+
+                        if "User:" in output:
+                            # print("🛠️ 'Username:' 감지 → 자동 입력")
+                            output += ssh.send_command_timing(target_device['username'])
+
+                        if "Password:" in output:
+                            # print("🔑 'Password:' 감지 → 자동 입력")
+                            output += ssh.send_command_timing(target_device['password'])
+
+                        try:
+                            ssh.enable()  # 기본값 사용
+                        except Exception:
+                            ssh.enable(enable_pattern=r"[>#]")  # `>` 또는 `#`을 허용
+
+                        prompt = ssh.find_prompt()
+                        # print(f"✅ SSH 접속 성공! 현재 프롬프트: {prompt}")
+
+                    except Exception as e:
+                        self.signals.log.emit(f"SSH Connection Failed: {hostname} ({ipaddr}:{port})")
 
                     break  # 성공하면 루프 종료
 
                 except NetmikoTimeoutException:
                     self.signals.log.emit(f"SSH Timeout: {hostname} ({ipaddr}:{port})")
                     self.signals.logfile.emit(
-                        f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,SSH Timeout")
+                        f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,SSH Timeout")
                     if attempt < 2:  # 🔹 마지막 시도 전까지만 재시도
                         time.sleep(5)  # 🔹 5초 대기 후 재시도
                         continue
@@ -200,19 +224,19 @@ class Worker(QRunnable):
                 except AuthenticationException:
                     self.signals.log.emit(f"Authentication Failed: {hostname} ({ipaddr}:{port})")
                     self.signals.logfile.emit(
-                        f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Authentication Failed")
+                        f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Authentication Failed")
                     return
 
                 except SSHException:
                     self.signals.log.emit(f"SSH Connection Refused: {hostname} ({ipaddr}:{port})")
                     self.signals.logfile.emit(
-                        f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,SSH Connection Refused")
+                        f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,SSH Connection Refused")
                     return
 
                 except Exception as e:
                     self.signals.log.emit(f"Unknown Error: {hostname} ({ipaddr}) - {e}")
                     self.signals.logfile.emit(
-                        f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,{e}")
+                        f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,{e}")
                     return
 
             result = {}
@@ -232,9 +256,9 @@ class Worker(QRunnable):
                 init_cmd = INIT_CMD["CISCO_WLC_CAT"]
                 init_parse = INIT_PARSE["CISCO_WLC_CAT"]
             else:
-                self.signals.log.emit(f"Unsupported Platform: {hostname} ({ipaddr}:{port})")
+                self.signals.log.emit(f"Unsupported Platform: {index}_{hostname} ({ipaddr}:{port})")
                 self.signals.logfile.emit(
-                    f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Unsupported Platform")
+                    f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Unsupported Platform")
                 raise Exception("Unsupported Platform")
 
             init_data = self.execute_command(ssh, init_cmd)
@@ -281,24 +305,24 @@ class Worker(QRunnable):
             ssh.disconnect()
 
             self.make_report(result)
-            self.signals.log.emit(f"Success: {hostname} ({ipaddr}:{port})")
+            self.signals.log.emit(f"Success: {index}_{hostname} ({ipaddr}:{port})")
         except Exception as e:
-            self.signals.log.emit(f"Failed: {hostname} ({ipaddr}:{port}) - {e}")
+            self.signals.log.emit(f"Failed: {index}_{hostname} ({ipaddr}:{port}) - {e}")
             self.signals.logfile.emit(
-                f"{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,{e}")
+                f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,{e}")
         finally:
             self.signals.finished.emit()
 
-    @staticmethod
-    def execute_command(ssh, command, retries=3, delay=5):
+    def execute_command(self, ssh, command, retries=3, delay=5):
         """특정 명령어 실행 후 오류 발생 시 재시도"""
         for attempt in range(retries):
             try:
-                print(f"🔹 Attempt {attempt + 1}: Executing '{command}'")
+                # print(f"🔹 Attempt {attempt + 1}: Executing '{command}'")
                 output = ssh.send_command(command, delay_factor=5, read_timeout=60)
-                print(f"✅ Command '{command}' executed successfully!")
+                # print(f"✅ Command '{command}' executed successfully!")
                 return output
             except ReadTimeout:
+                self.signals.log.emit(f"Command Timeout Error: {ssh.host} '{command}' - Retrying in {delay} seconds..")
                 print(f"⏳ Timeout Error: {ssh.host} '{command}' - Retrying in {delay} seconds...")
                 time.sleep(delay)
             except Exception as e:
@@ -310,7 +334,7 @@ class Worker(QRunnable):
     def make_report(data):
         now = time.localtime()
         cur_date = "%04d%02d%02d" % (now.tm_year, now.tm_mon, now.tm_mday)
-        result_path = os.getcwd() + f"/Collector{str(data['INDEX'])}_{cur_date}_{data['HOSTNAME']}({data['IPADDR']}).txt"
+        result_path = os.getcwd() + f"/Collector_{cur_date}_{str(data['INDEX'])}_{data['HOSTNAME']}({data['IPADDR']}).txt"
         try:
             with open(result_path, "w") as outputFile:
                 outputFile.write(f'HOSTNAME: {data.pop("HOSTNAME")}\n'
@@ -333,7 +357,7 @@ class AppView(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Collector(v1.0)")
+        self.setWindowTitle("Collector(v1.3)")
         self.setWindowIcon(QIcon(ICON_FILEPATH))
         self.setMinimumSize(685, 600)
 
@@ -592,7 +616,7 @@ class AppController:
         now = time.localtime()
         cur_date = "%04d%02d%02d" % (now.tm_year, now.tm_mon, now.tm_mday)
         cur_time = "%02d:%02d:%02d" % (now.tm_hour, now.tm_min, now.tm_sec)
-        result_path = os.getcwd() + f"/Collector_Failed_{cur_date}_logging.csv"
+        result_path = os.getcwd() + f"/Collector_Failed_{cur_date}.csv"
         try:
             with open(result_path, "a") as outputFile:
                 outputFile.write(f"{cur_date}_{cur_time},{data}\n")

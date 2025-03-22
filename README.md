@@ -16,3 +16,7 @@
 - send_command -> execute_command 로 변경
   - send_command read_timeout 60초 적용 
   - retry, delay 적용
+
+## 20250320 Collector V1.3
+- Login prompt 처리
+- USER/PASS 물어볼 경우 직접 입력
