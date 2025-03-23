@@ -177,9 +177,6 @@ class Worker(QRunnable):
                         'global_delay_factor': 2
                     }
 
-                    # print(target_device)
-
-                    # ssh = ConnectHandler(**target_device)
                     ssh = ConnectHandler(**target_device, allow_auto_change=False)
 
                     try:
@@ -202,9 +199,6 @@ class Worker(QRunnable):
                             ssh.enable()  # 기본값 사용
                         except Exception:
                             ssh.enable(enable_pattern=r"[>#]")  # `>` 또는 `#`을 허용
-
-                        prompt = ssh.find_prompt()
-                        # print(f"✅ SSH 접속 성공! 현재 프롬프트: {prompt}")
 
                     except Exception as e:
                         self.signals.log.emit(f"SSH Connection Failed: {hostname} ({ipaddr}:{port})")
@@ -240,49 +234,31 @@ class Worker(QRunnable):
                     return
 
             result = {}
-            if platform == "CISCO_XE":
-                init_cmd = INIT_CMD["CISCO_XE"]
-                init_parse = INIT_PARSE["CISCO_XE"]
-            elif platform == "CISCO_NXOS":
-                init_cmd = INIT_CMD["CISCO_NXOS"]
-                init_parse = INIT_PARSE["CISCO_NXOS"]
-            elif platform == "CISCO_IOS":
-                init_cmd = INIT_CMD["CISCO_IOS"]
-                init_parse = INIT_PARSE["CISCO_IOS"]
-            elif platform == "CISCO_WLC_AIR":
-                init_cmd = INIT_CMD["CISCO_WLC_AIR"]
-                init_parse = INIT_PARSE["CISCO_WLC_AIR"]
-            elif platform == "CISCO_WLC_CAT":
-                init_cmd = INIT_CMD["CISCO_WLC_CAT"]
-                init_parse = INIT_PARSE["CISCO_WLC_CAT"]
+            if platform in INIT_CMD.keys():
+                init_cmd = INIT_CMD[platform]
+                init_parse = INIT_PARSE[platform]
             else:
                 self.signals.log.emit(f"Unsupported Platform: {index}_{hostname} ({ipaddr}:{port})")
                 self.signals.logfile.emit(
                     f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Unsupported Platform")
                 raise Exception("Unsupported Platform")
 
-            init_data = self.execute_command(ssh, init_cmd)
-            # print(f"{hostname} : {init_data}")
+            init_data = ""
+            for cmd in init_cmd:
+                init_data += self.execute_command(ssh, cmd)
+
+            print(f"{hostname} : {init_data}")
 
             result["INDEX"] = index
-            result["HOSTNAME"] = hostname
+            # result["HOSTNAME"] = hostname
             result["IPADDR"] = ipaddr
             result["PLATFORM"] = platform
 
-            if bool(re.search(init_parse["VERSION"], init_data)):
-                result["VERSION"] = re.search(init_parse["VERSION"], init_data).group(1)
-            else:
-                result["VERSION"] = ""
-
-            if bool(re.search(init_parse["SERIAL_NUMBER"], init_data)):
-                result["SERIAL_NUMBER"] = re.search(init_parse["SERIAL_NUMBER"], init_data).group(1)
-            else:
-                result["SERIAL_NUMBER"] = ""
-
-            if bool(re.search(init_parse["PID"], init_data)):
-                result["PID"] = re.search(init_parse["PID"], init_data).group(1)
-            else:
-                result["PID"] = ""
+            for temp in ["VERSION", "SERIAL_NUMBER", "PID", "HOSTNAME"]:
+                if bool(re.search(init_parse[temp], init_data)):
+                    result[temp] = re.search(init_parse[temp], init_data).group(1)
+                else:
+                    result[temp] = ""
 
             for command in commands:
                 tmp = self.execute_command(ssh, command)
@@ -314,7 +290,9 @@ class Worker(QRunnable):
             self.signals.finished.emit()
 
     def execute_command(self, ssh, command, retries=3, delay=5):
-        """특정 명령어 실행 후 오류 발생 시 재시도"""
+        if command == "":
+            return ""
+
         for attempt in range(retries):
             try:
                 # print(f"🔹 Attempt {attempt + 1}: Executing '{command}'")
@@ -328,7 +306,7 @@ class Worker(QRunnable):
             except Exception as e:
                 print(f"❌ Error executing {ssh.host} '{command}': {e}")
                 break  # 다른 오류 발생 시 재시도 중단
-        return None  # 최종 실패 시 None 반환
+        return ""  # 최종 실패 시 None 반환
 
     @staticmethod
     def make_report(data):

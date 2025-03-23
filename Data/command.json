@@ -1,10 +1,10 @@
 {
   "INIT": {
-    "CISCO_XE": "show version",
-    "CISCO_NXOS":"show version",
-    "CISCO_IOS": "show version",
-    "CISCO_WLC_AIR": "show sysinfo",
-    "CISCO_WLC_CAT": "show version"
+    "CISCO_XE": ["show version"],
+    "CISCO_NXOS":["show version"],
+    "CISCO_IOS": ["show version"],
+    "CISCO_WLC_AIR": ["show sysinfo", "show inventory"],
+    "CISCO_WLC_CAT": ["show version"]
   },
   "EXPECT_STRING": "[#>\\)]",
   "CISCO_XE": [
