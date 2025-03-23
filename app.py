@@ -315,7 +315,8 @@ class Worker(QRunnable):
         result_path = os.getcwd() + f"/Collector_{cur_date}_{str(data['INDEX'])}_{data['HOSTNAME']}({data['IPADDR']}).txt"
         try:
             with open(result_path, "w") as outputFile:
-                outputFile.write(f'HOSTNAME: {data.pop("HOSTNAME")}\n'
+                outputFile.write(f'INDEX: {data.pop("INDEX")}\n'
+                                 f'HOSTNAME: {data.pop("HOSTNAME")}\n'
                                  f'IPADDR: {data.pop("IPADDR")}\n'
                                  f'PLATFORM: {data.pop("PLATFORM")}\n'
                                  f'VERSION: {data.pop("VERSION")}\n'

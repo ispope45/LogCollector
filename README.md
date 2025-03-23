@@ -20,3 +20,6 @@
 ## 20250320 Collector V1.3
 - Login prompt 처리
 - USER/PASS 물어볼 경우 직접 입력
+
+## 20250323 Collector V1.4
+- Parse form에 Hostname 추가
