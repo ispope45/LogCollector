@@ -19,6 +19,8 @@ else:
     # 개발 환경에서 파일 경로 찾기
     FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+APP_VERSION = "LogCollector V1.4"
+
 TEMPLATE_FILEPATH = os.path.join(FILE_DIR, 'Data/Collector_device_template.xlsx')
 ICON_FILEPATH = os.path.join(FILE_DIR, 'icon.ico')
 
@@ -312,7 +314,7 @@ class Worker(QRunnable):
     def make_report(data):
         now = time.localtime()
         cur_date = "%04d%02d%02d" % (now.tm_year, now.tm_mon, now.tm_mday)
-        result_path = os.getcwd() + f"/Collector_{cur_date}_{str(data['INDEX'])}_{data['HOSTNAME']}({data['IPADDR']}).txt"
+        result_path = os.getcwd() + f"/Collector_{cur_date}_{str(data['INDEX'])}_({data['HOSTNAME']})[{data['IPADDR']}].txt"
         try:
             with open(result_path, "w") as outputFile:
                 outputFile.write(f'INDEX: {data.pop("INDEX")}\n'
@@ -336,7 +338,7 @@ class AppView(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Collector(v1.3)")
+        self.setWindowTitle(APP_VERSION)
         self.setWindowIcon(QIcon(ICON_FILEPATH))
         self.setMinimumSize(685, 600)
 
@@ -522,7 +524,7 @@ class AppController:
                     # self.fill_table_widget(row_data)
 
                 for index in invalid_index:
-                    self.logging_text(f"Invalid row at index {index + 2}")
+                    self.logging_text(f"Invalid row at index {index + 1}")
                 self.view.line_edit.setText(file_path)
                 self.model.main_df = data
 
