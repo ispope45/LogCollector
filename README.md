@@ -27,3 +27,6 @@
 ## 20250416 Collector V1.5
 - Timeout 3번씩 로그 찍히는거 1번으로 변경
 - 성공한 세션 Logging
+
+## 20250514 Collector V1.5
+- Command timeout 발생시 read_timeout 2배로 설정하여 재시도 최대 3회

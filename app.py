@@ -19,7 +19,7 @@ else:
     # 개발 환경에서 파일 경로 찾기
     FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-APP_VERSION = "LogCollector V1.4"
+APP_VERSION = "LogCollector V1.5"
 
 TEMPLATE_FILEPATH = os.path.join(FILE_DIR, 'Data/Collector_device_template.xlsx')
 ICON_FILEPATH = os.path.join(FILE_DIR, 'icon.ico')
@@ -189,11 +189,11 @@ class Worker(QRunnable):
                         # 초기 명령 실행 후 프롬프트 확인
                         output = ssh.send_command_timing("\n", delay_factor=2)
 
-                        if "User:" in output:
+                        if "ser:" in output:
                             # print("🛠️ 'Username:' 감지 → 자동 입력")
                             output += ssh.send_command_timing(target_device['username'])
 
-                        if "Password:" in output:
+                        if "assword:" in output:
                             # print("🔑 'Password:' 감지 → 자동 입력")
                             output += ssh.send_command_timing(target_device['password'])
 
@@ -290,20 +290,23 @@ class Worker(QRunnable):
         finally:
             self.signals.finished.emit()
 
-    def execute_command(self, ssh, command, retries=3, delay=5):
+    def execute_command(self, ssh, command, retries=3, delay=2):
         if command == "":
             return ""
+
+        rd_timeout = 60
 
         for attempt in range(retries):
             try:
                 # print(f"🔹 Attempt {attempt + 1}: Executing '{command}'")
-                output = ssh.send_command(command, delay_factor=5, read_timeout=60)
+                output = ssh.send_command(command, delay_factor=5, read_timeout=rd_timeout)
                 # print(f"✅ Command '{command}' executed successfully!")
                 return output
             except ReadTimeout:
                 self.signals.log.emit(f"Command Timeout Error: {ssh.host} '{command}' - Retrying in {delay} seconds..")
                 print(f"⏳ Timeout Error: {ssh.host} '{command}' - Retrying in {delay} seconds...")
                 time.sleep(delay)
+                rd_timeout += rd_timeout
             except Exception as e:
                 print(f"❌ Error executing {ssh.host} '{command}': {e}")
                 break  # 다른 오류 발생 시 재시도 중단
@@ -587,7 +590,7 @@ class AppController:
         result_path = os.getcwd() + f"/Collector_Failed_{cur_date}.csv"
         try:
             with open(result_path, "w") as outputFile:
-                outputFile.write("DATE,HOSTNAME,IPADDR,PORT,USERNAME,PASSWORD,ENABLE,PLATFORM,STATUS,REASON\n")
+                outputFile.write("DATE,INDEX,HOSTNAME,IPADDR,PORT,USERNAME,PASSWORD,ENABLE,PLATFORM,STATUS,REASON\n")
         except Exception as e:
             print(e)
 
