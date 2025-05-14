@@ -23,3 +23,7 @@
 
 ## 20250323 Collector V1.4
 - Parse form에 Hostname 추가
+
+## 20250416 Collector V1.5
+- Timeout 3번씩 로그 찍히는거 1번으로 변경
+- 성공한 세션 Logging

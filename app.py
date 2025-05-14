@@ -208,9 +208,6 @@ class Worker(QRunnable):
                     break  # 성공하면 루프 종료
 
                 except NetmikoTimeoutException:
-                    self.signals.log.emit(f"SSH Timeout: {hostname} ({ipaddr}:{port})")
-                    self.signals.logfile.emit(
-                        f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,SSH Timeout")
                     if attempt < 2:  # 🔹 마지막 시도 전까지만 재시도
                         time.sleep(5)  # 🔹 5초 대기 후 재시도
                         continue
@@ -284,6 +281,8 @@ class Worker(QRunnable):
 
             self.make_report(result)
             self.signals.log.emit(f"Success: {index}_{hostname} ({ipaddr}:{port})")
+            self.signals.logfile.emit(
+                f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Success")
         except Exception as e:
             self.signals.log.emit(f"Failed: {index}_{hostname} ({ipaddr}:{port}) - {e}")
             self.signals.logfile.emit(
