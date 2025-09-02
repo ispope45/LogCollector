@@ -44,6 +44,7 @@
     "show ntp status",
     "show cdp neighbor",
     "show lldp neighbor",
+    "show lldp neighbor detail | include System Name|Port id",
     "show logging"
   ],
   "CISCO_IOS": [
@@ -76,6 +77,7 @@
     "show ntp status",
     "show cdp neighbor",
     "show lldp neighbor",
+    "show lldp neighbor detail | include System Name|Port id",
     "show logging"
   ],
   "CISCO_NXOS": [
@@ -117,6 +119,7 @@
     "show ntp peer-status",
     "show cdp neighbor",
     "show lldp neighbor",
+    "show lldp neighbor detail | include System Name|Port id",
     "show tacacs-server",
     "show logging"
   ],

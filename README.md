@@ -1,4 +1,5 @@
 # LogCollector
+- netmiko base
 
 ## 2025028 Collector V1.0
 - 쿠팡 정기점검 Command 자동화
@@ -30,3 +31,20 @@
 
 ## 20250514 Collector V1.5
 - Command timeout 발생시 read_timeout 2배로 설정하여 재시도 최대 3회
+
+## 20250515 Collector V1.5
+- Connection timeout 발생시 conn_timeout 2배로 설정하여 재시도 최대 3회
+- logging_text에서 raw log file 생성하도록 변경
+
+## 20250611 Collector V1.7
+- ??
+
+## 20250714 Collector V1.8
+- 응답시간이 긴 Command 는 예외처리
+
+## 20250828 Collector V2.0(ing)
+- Parsing tool과 기능 통합
+- Collector로 수집된 정보만 출력
+- Collector
+  - Hostname/SN 수집되지 않은 Device 수집하지 않음.
+  - 

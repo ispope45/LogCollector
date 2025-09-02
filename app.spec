@@ -5,7 +5,7 @@ block_cipher = None
 
 
 a = Analysis(['app.py'],
-             pathex=['D:\\Python\\LogCollector'],
+             pathex=['D:\\12. Python Src\\LogCollector'],
              binaries=[],
              datas=[('Data/*', 'Data'), ('icon.ico', '.')],
              hiddenimports=[],
@@ -26,7 +26,7 @@ exe = EXE(pyz,
           a.zipfiles,
           a.datas,
           [],
-          name='Collector_V1.4',
+          name='Collector_V1.7',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,

@@ -11,7 +11,7 @@ from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtCore import QThreadPool, QRunnable, pyqtSignal, QObject, Qt
 
 from netmiko import ConnectHandler, ReadTimeout
-from netmiko.exceptions import NetmikoTimeoutException, AuthenticationException, SSHException
+from netmiko.exceptions import NetmikoTimeoutException, AuthenticationException, SSHException, ConnectionException
 
 if getattr(sys, 'frozen', False):
     FILE_DIR = sys._MEIPASS
@@ -19,10 +19,11 @@ else:
     # 개발 환경에서 파일 경로 찾기
     FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-APP_VERSION = "LogCollector V1.5"
+APP_VERSION = "LogCollector V1.7"
 
 TEMPLATE_FILEPATH = os.path.join(FILE_DIR, 'Data/Collector_device_template.xlsx')
 ICON_FILEPATH = os.path.join(FILE_DIR, 'icon.ico')
+
 
 CMD_JSON = json.load(open(os.path.join(FILE_DIR, 'Data/command.json')))
 PARSE_JSON = json.load(open(os.path.join(FILE_DIR, 'Data/parser.json')))
@@ -166,25 +167,24 @@ class Worker(QRunnable):
 
         try:
             ssh = None  # 🔹 연결 객체 초기화
+            target_device = {
+                'device_type': dev_type,
+                'host': ipaddr,
+                'username': username,
+                'password': password,
+                'secret': enable,
+                'port': int(port),
+                'conn_timeout': 10,
+                'global_delay_factor': 2
+            }
             for attempt in range(3):
                 try:
-                    target_device = {
-                        'device_type': dev_type,
-                        'host': ipaddr,
-                        'username': username,
-                        'password': password,
-                        'secret': enable,
-                        'port': int(port),
-                        'conn_timeout': 10,
-                        'global_delay_factor': 2
-                    }
-
                     ssh = ConnectHandler(**target_device, allow_auto_change=False)
 
                     try:
                         # print(f"🚀 {device['host']} SSH 접속 시도 중...")
 
-                        ssh = ConnectHandler(**target_device, allow_auto_change=False)
+                        # ssh = ConnectHandler(**target_device, allow_auto_change=False)
 
                         # 초기 명령 실행 후 프롬프트 확인
                         output = ssh.send_command_timing("\n", delay_factor=2)
@@ -210,6 +210,7 @@ class Worker(QRunnable):
                 except NetmikoTimeoutException:
                     if attempt < 2:  # 🔹 마지막 시도 전까지만 재시도
                         time.sleep(5)  # 🔹 5초 대기 후 재시도
+                        target_device['conn_timeout'] += target_device['conn_timeout']
                         continue
                     else:
                         raise  # 마지막 시도 실패 시 예외 발생
@@ -226,10 +227,16 @@ class Worker(QRunnable):
                         f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,SSH Connection Refused")
                     return
 
+                except ConnectionException:
+                    self.signals.log.emit(f"Connection Error: {hostname} ({ipaddr}:{port})")
+                    self.signals.logfile.emit(
+                        f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Connection Failed")
+                    return
+
                 except Exception as e:
                     self.signals.log.emit(f"Unknown Error: {hostname} ({ipaddr}) - {e}")
                     self.signals.logfile.emit(
-                        f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,{e}")
+                        f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Unknown Error")
                     return
 
             result = {}
@@ -258,6 +265,7 @@ class Worker(QRunnable):
                     result[temp] = re.search(init_parse[temp], init_data).group(1)
                 else:
                     result[temp] = ""
+                    raise
 
             for command in commands:
                 tmp = self.execute_command(ssh, command)
@@ -286,29 +294,34 @@ class Worker(QRunnable):
         except Exception as e:
             self.signals.log.emit(f"Failed: {index}_{hostname} ({ipaddr}:{port}) - {e}")
             self.signals.logfile.emit(
-                f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,{e}")
+                f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Failed,Connection Failed/Unknwon Error")
         finally:
+            ssh.disconnect()
             self.signals.finished.emit()
 
-    def execute_command(self, ssh, command, retries=3, delay=2):
+    def execute_command(self, ssh, command, retries=5, delay=2):
         if command == "":
             return ""
 
         rd_timeout = 60
 
+        # Too long command
+        if command in ["show ap wlan summary", "show wireless client summary"]:
+            rd_timeout = 300
+
         for attempt in range(retries):
             try:
                 # print(f"🔹 Attempt {attempt + 1}: Executing '{command}'")
-                output = ssh.send_command(command, delay_factor=5, read_timeout=rd_timeout)
+                output = ssh.send_command(command, delay_factor=5, read_timeout=rd_timeout * (attempt + 1))
                 # print(f"✅ Command '{command}' executed successfully!")
                 return output
             except ReadTimeout:
                 self.signals.log.emit(f"Command Timeout Error: {ssh.host} '{command}' - Retrying in {delay} seconds..")
-                print(f"⏳ Timeout Error: {ssh.host} '{command}' - Retrying in {delay} seconds...")
+                # print(f"⏳ Timeout Error: {ssh.host} '{command}' - Retrying in {delay} seconds...")
                 time.sleep(delay)
-                rd_timeout += rd_timeout
+                # rd_timeout += rd_timeout
             except Exception as e:
-                print(f"❌ Error executing {ssh.host} '{command}': {e}")
+                self.signals.log.emit(f"Error executing Command: {ssh.host} '{command}': {e}")
                 break  # 다른 오류 발생 시 재시도 중단
         return ""  # 최종 실패 시 None 반환
 
@@ -582,6 +595,15 @@ class AppController:
 
     def logging_text(self, msg):
         self.view.text_browser.append(msg)
+        now = time.localtime()
+        cur_date = "%04d%02d%02d" % (now.tm_year, now.tm_mon, now.tm_mday)
+        cur_time = "%02d:%02d:%02d" % (now.tm_hour, now.tm_min, now.tm_sec)
+        result_path = os.getcwd() + f"/Collector_raw_{cur_date}.log"
+        try:
+            with open(result_path, "a") as outputFile:
+                outputFile.write(f"{cur_date} {cur_time} msg : {msg}\n")
+        except Exception as e:
+            print(e)
 
     @staticmethod
     def init_logging():
