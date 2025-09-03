@@ -4,6 +4,7 @@ import re
 from PyQt5.QtCore import QThreadPool, QRunnable, pyqtSignal, QObject
 from netmiko import ConnectHandler, ReadTimeout
 from netmiko.exceptions import NetmikoTimeoutException, AuthenticationException, SSHException, ConnectionException
+
 from .constants import CMD_JSON, INIT_CMD, INIT_PARSE, PLATFORM_TO_NETMIKO, DEVICE_FORM
 
 
@@ -42,10 +43,14 @@ class Worker(QRunnable):
                     ssh = ConnectHandler(**target_device, allow_auto_change=False)
                     try:
                         out = ssh.send_command_timing("\n", delay_factor=2)
-                        if "ser:" in out: out += ssh.send_command_timing(target_device['username'])
-                        if "assword:" in out: out += ssh.send_command_timing(target_device['password'])
-                        try: ssh.enable()
-                        except Exception: ssh.enable(enable_pattern=r"[>#]")
+                        if "ser:" in out:
+                            out += ssh.send_command_timing(target_device['username'])
+                        if "assword:" in out:
+                            out += ssh.send_command_timing(target_device['password'])
+                        try:
+                            ssh.enable()
+                        except Exception:
+                            ssh.enable(enable_pattern=r"[>#]")
                     except Exception:
                         self.signals.log.emit(f"SSH Connection Failed: {hostname} ({ipaddr}:{port})")
                     break
@@ -106,7 +111,8 @@ class Worker(QRunnable):
             self.signals.finished.emit()
 
     def execute_command(self, ssh, command, retries=5, delay=2):
-        if not command: return ""
+        if not command:
+            return ""
         rd_timeout = 300 if command in ["show ap wlan summary","show wireless client summary"] else 60
         for attempt in range(retries):
             try:
@@ -121,7 +127,7 @@ class Worker(QRunnable):
 
     @staticmethod
     def _save_config(platform, ssh):
-        if platform in ("CISCO_IOS","CISCO_XE","CISCO_WLC_CAT"):
+        if platform in ("CISCO_IOS", "CISCO_XE", "CISCO_WLC_CAT"):
             ssh.send_command_timing("write memory", delay_factor=3)
         elif platform == "CISCO_NXOS":
             ssh.send_command_timing("copy running-config startup-config", delay_factor=3)

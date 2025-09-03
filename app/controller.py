@@ -5,7 +5,11 @@ from PyQt5.QtCore import Qt, QThreadPool
 from .model import AppModel
 from .view import AppView
 from .worker import Worker
-from .constants import TEMPLATE_FILEPATH
+from .constants import TEMPLATE_FILEPATH, ROOT_DIR
+
+# Parser PARSE Form 적용
+from Parser import coupang_parse_template
+
 
 class AppController:
     def __init__(self, main_view:AppView, main_model:AppModel):
@@ -21,6 +25,10 @@ class AppController:
 
         self.maximum_task_cnt = 0
         self.current_task_cnt = 0
+
+    @staticmethod
+    def parsing_coupang():
+        coupang_parse_template.report(ROOT_DIR)
 
     def on_download_label_click(self, event):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -56,14 +64,17 @@ class AppController:
 
     def run_command(self):
         if len(self.model.main_df) == 0:
-            self.show_alert("Not selected source."); return
+            self.show_alert("Not selected source.")
+            return
 
         self.view.push_button_run.setEnabled(False)
+        self.view.push_button_run.setText("Started...")
         self.view.progress_bar.setValue(0)
         self.maximum_task_cnt = len(self.model.main_df)
         self.current_task_cnt = 0
 
         self.init_logging()
+        self.logging_text("Starting Log Collector")
         for row in self.model.main_df.itertuples(index=False, name=None):
             worker = Worker(row)
             worker.signals.log.connect(self.logging_text)
@@ -78,7 +89,14 @@ class AppController:
         self.view.progress_bar.setValue(pct)
         if self.current_task_cnt == self.maximum_task_cnt:
             self.view.progress_bar.setValue(100)
+            self.logging_text("Collecting finished!")
+            time.sleep(10)
+            self.logging_text("Generated Collector Log Summary!")
+            self.parsing_coupang()
+            self.logging_text("Generated Collector Log Summary!")
+
             self.view.push_button_run.setEnabled(True)
+            self.view.push_button_run.setText("Run!")
 
     def logging_text(self, msg):
         self.view.text_browser.append(msg)
@@ -108,7 +126,7 @@ class AppController:
         now = time.localtime()
         cur_date = f"{now.tm_year:04d}{now.tm_mon:02d}{now.tm_mday:02d}"
         cur_time = f"{now.tm_hour:02d}:{now.tm_min:02d}:{now.tm_sec:02d}"
-        path = os.path.join(os.getcwd(), f"Collector_Failed_{cur_date}.csv")
+        path = os.path.join(ROOT_DIR, f"Collector_Failed_{cur_date}.csv")
         try:
             with open(path, "a", encoding="utf-8") as f:
                 f.write(f"{cur_date}_{cur_time},{data}\n")
@@ -119,7 +137,8 @@ class AppController:
     def show_alert(msg):
         try:
             box = QMessageBox()
-            box.setWindowTitle("Error"); box.setText(msg)
+            box.setWindowTitle("Error")
+            box.setText(msg)
             box.setIcon(QMessageBox.Critical)
             box.setStandardButtons(QMessageBox.Ok)
             box.exec_()

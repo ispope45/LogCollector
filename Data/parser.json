@@ -5,7 +5,7 @@
     "USERNAME": "^[a-zA-Z0-9\\-_]+$",
     "PASSWORD": "^[a-zA-Z0-9\\(\\)!@#$%^*+=-]+$",
     "ENABLE": "^[a-zA-Z0-9\\(\\)!@#$%^*+=-]+$",
-    "PLATFORM": "CISCO_XE|CISCO_XR|CISCO_NXOS|CISCO_IOS|CISCO_WLC_AIR|CISCO_WLC_CAT"
+    "PLATFORM": "CISCO_XE|CISCO_XR|CISCO_NXOS|CISCO_IOS|CISCO_WLC_CAT"
   },
   "INIT_PARSE": {
     "CISCO_XE": {
@@ -37,6 +37,290 @@
       "SERIAL_NUMBER": "Processor board ID (\\S+)",
       "PID": "cisco (\\S+) \\(",
       "HOSTNAME": "(\\S+) uptime is "
+    }
+  },
+  "PARSE_PATTERN" : {
+    "PLATFORM": {
+      "CISCO_WLC_CAT": "cisco C9800[-\\dA-Z]+",
+      "CISCO_XE": "Cisco IOS XE Software, Version",
+      "CISCO_NXOS": "Cisco Nexus Operating System \\(NX-OS\\) Software\\n",
+      "CISCO_IOS": "Cisco IOS Software,"
+    },
+    "HOSTNAME": {
+      "CISCO_XE": {
+        "PATTERN1": "[^ ]hostname (?P<HOSTNAME>[a-zA-Z\\d\\_\\-\\.]+)\n",
+        "PATTERN2": "\n\n(\\S+) uptime "
+      },
+      "CISCO_NXOS": {
+        "PATTERN1": "[^ ]hostname (?P<HOSTNAME>[a-zA-Z\\d\\_\\-\\.]+)\n",
+        "PATTERN2": "Device name: (\\S+)"
+      },
+      "CISCO_WLC_CAT": {
+        "PATTERN1": "[^ ]hostname (?P<HOSTNAME>[a-zA-Z\\d\\_\\-\\.]+)\n"
+      },
+      "CISCO_IOS": {
+        "PATTERN1": "[^ ]hostname (?P<HOSTNAME>[a-zA-Z\\d\\_\\-\\.]+)\n"
+      }
+},
+    "SERIAL_NUMBER": {
+      "CISCO_XE": {
+        "PATTERN1": "Processor board ID ([A-Z\\d]+)\\n"
+      },
+      "CISCO_NXOS": {
+        "PATTERN1": "Processor Board ID ([A-Z\\d]+)\\n"
+      },
+      "CISCO_WLC_CAT": {
+        "PATTERN1": "Processor board ID ([A-Z\\d]+)\\n"
+      },
+      "CISCO_IOS": {
+        "PATTERN1": "Processor board ID ([A-Z\\d]+)\\n"
+      }
+    },
+    "PID": {
+      "CISCO_XE": {
+        "PATTERN1": "Model\\sNumber\\s+: ([-\\dA-Z]+)",
+        "SECTION1": {
+          "START": "Cisco IOS XE Software",
+          "END": "System Serial Number"
+        }
+      },
+      "CISCO_NXOS": {
+        "PATTERN1": "  cisco Nexus\\d+ ([-\\dA-Z]+)(?: \\(\\d Slot\\))? Chassis "
+      },
+      "CISCO_WLC_CAT": {
+        "PATTERN1": "cisco (C9800[-\\dA-Z]+)"
+      },
+      "CISCO_IOS": {
+        "PATTERN1": "Model\\snumber\\s+: ([-\\dA-Z]+)"
+      }
+    },
+    "VERSION": {
+      "CISCO_XE": {
+        "PATTERN1": "Version (\\d{1,2}\\.\\d{1,2}\\.\\d{1,2}[a-z]*)",
+        "SECTION1": {
+          "START": "Cisco IOS XE Software",
+          "END": "\n\n\n"
+        }
+      },
+      "CISCO_NXOS": {
+        "PATTERN1": "NXOS: version (\\S+)\\s",
+        "SECTION1": {
+          "START": "Cisco Nexus Operating System \\(NX-OS\\) Software\\n",
+          "END": "Active Package\\(s\\):"
+        },
+        "PATTERN2": "  system:    version (\\S+)\n",
+        "SECTION2": {
+          "START": "Cisco Nexus Operating System \\(NX-OS\\) Software\\n",
+          "END": "Active Package\\(s\\):"
+        }
+      },
+      "CISCO_WLC_CAT": {
+        "PATTERN1": "Version (\\d{1,2}\\.\\d{1,2}\\.\\d{1,2}[a-z]*)",
+        "SECTION1": {
+          "START": "Cisco IOS XE Software,",
+          "END": "Copyright \\(c\\) 1986-2023 by Cisco Systems, Inc."
+        }
+      },
+      "CISCO_IOS": {
+        "PATTERN1": "(\\d+\\.\\d+\\(\\d+\\)[A-Za-z0-9]+)",
+        "SECTION1": {
+          "START": "Switch\\s+Ports\\s+Model\\s+SW Version",
+          "END": "\n\n\n"
+        }
+      },
+      "DELL_OS": {
+        "PATTERN1": "!System Software Version (\\S+)\n",
+        "PATTERN2": "Dell Application Software Version:  (\\S+)\n"
+      },
+      "ARUBA_OS": {
+        "PATTERN1": "Software Version\\s+: ArubaOS (\\S+)\\s"
+      }
+    },
+    "CPU": {
+      "CISCO_XE": {
+        "PATTERN1": "CPU utilization for five seconds: \\d{1,3}%/\\d{1,3}%; one minute: \\d{1,3}%; five minutes: (\\d{1,3})%",
+        "SECTION1": {
+          "START": "CPU utilization for five seconds:",
+          "END": "PID"
+        }
+      },
+      "CISCO_NXOS": {
+        "PATTERN1": "CPU utilization for five seconds: \\d{1,3}%/\\d{1,3}%; one minute: \\d{1,3}%; five minutes: (\\d{1,3})%",
+        "PATTERN2": "CPU util  :    (\\d{1,3}).\\d{1,2}% user,    \\d{1,3}.\\d{1,2}% kernel,   \\d{1,3}.\\d{1,2}% idle",
+        "PATTERN3": "CPU states  :   (\\d{1,3}).\\d{1,2}% user,   \\d{1,3}.\\d{1,2}% kernel,   \\d{1,3}.\\d{1,2}% idle"
+      },
+      "CISCO_WLC_CAT": {
+        "PATTERN1": "CPU utilization for five seconds: \\d{1,3}%/\\d{1,3}%; one minute: \\d{1,3}%; five minutes: (\\d{1,3})%",
+        "SECTION1": {
+          "START": "CPU utilization for five seconds:",
+          "END": "PID"
+        }
+      },
+      "CISCO_WLC_AIR": {
+        "PATTERN1": "Current CPU\\(s\\) load: (\\d{1,3})%",
+        "SECTION1": {
+          "START": "Current CPU\\(s\\) load:",
+          "END": ""
+        }
+      },
+      "CISCO_IOS": {
+        "PATTERN1": "CPU utilization for five seconds: \\d{1,3}%/\\d{1,3}%; one minute: \\d{1,3}%; five minutes: (\\d{1,3})%",
+        "SECTION1": {
+          "START": "CPU utilization for five seconds:",
+          "END": "PID"
+        }
+      }
+    },
+    "UPTIME": {
+      "CISCO_XE": {
+        "PATTERN1": "Uptime for this control processor is (?:(?P<YEAR>\\d+)\\s*years?,?)?\\s*(?:(?P<WEEK>\\d+)\\s*weeks?,?)?\\s*(?:(?P<DAY>\\d+)\\s*days?,?)?\\s*(?:(?P<HOUR>\\d+)\\s*hours?,?)?\\s*(?:\\d+\\s*minutes?,?)?\\s*(?:\\d+\\s*seconds?)?",
+        "SECTION1": {
+          "START": "Uptime for this control processor is",
+          "END": "System"
+        }
+      },
+      "CISCO_NXOS": {
+        "PATTERN1": "uptime is (?:(?P<DAY>\\d+)\\s*day\\(s\\))",
+        "SECTION1": {
+          "START": "Kernel uptime is",
+          "END": ""
+        }
+      },
+      "CISCO_WLC_CAT": {
+        "PATTERN1": "Uptime for this control processor is (?:(?P<YEAR>\\d+)\\s*years?,?)?\\s*(?:(?P<WEEK>\\d+)\\s*weeks?,?)?\\s*(?:(?P<DAY>\\d+)\\s*days?,?)?\\s*(?:(?P<HOUR>\\d+)\\s*hours?,?)?\\s*(?:\\d+\\s*minutes?,?)?\\s*(?:\\d+\\s*seconds?)?",
+        "SECTION1": {
+          "START": "Uptime for this control processor is",
+          "END": "System"
+        }
+      },
+      "CISCO_IOS": {
+        "PATTERN1": "uptime is (?:(?P<YEAR>\\d+)\\s*years?,?)?\\s*(?:(?P<WEEK>\\d+)\\s*weeks?,?)?\\s*(?:(?P<DAY>\\d+)\\s*days?,?)?\\s*(?:(?P<HOUR>\\d+)\\s*hours?,?)?\\s*(?:\\d+\\s*minutes?,?)?\\s*(?:\\d+\\s*seconds?)?",
+        "SECTION1": {
+          "START": "Cisco IOS Software",
+          "END": ""
+        }
+      }
+    },
+    "POWER": {
+      "CISCO_XE": {
+        "PATTERN1": "\\d[AB]\\s+\\S*PWR\\-\\S+\\s+\\S+\\s+(?P<PWR_STATUS>\\S+)\\s+\\S+\\s+\\S+\\s+\\d+",
+        "PATTERN2": "PS\\d\\s+\\S+\\-PWR\\-\\S+\\s+\\S+\\s+\\d+ W\\s+(?P<PWR_STATUS>\\S+)\\s+\\S+\\s+\\S+",
+        "PATTERN3": "P\\d\\s+\\S+\\-PWR\\-\\S+\\s+(?P<PWR_STATUS>\\S+)(?:, \\S+)?\\s+\\S+"
+      },
+      "CISCO_NXOS": {
+        "PATTERN1": "\\d\\s+\\S+\\-PAC\\-\\S+\\s+\\d+ W\\s+\\d+ W\\s+\\d+ W\\s+(?P<PWR_STATUS>\\S+)",
+        "SECTION1": {
+          "START": "Power Supply:",
+          "END": ""
+        },
+        "PATTERN2": "\\d\\s+\\S+\\-AC\\-\\S+\\s+\\d+ W\\s+\\d+ W\\s+\\d+ W\\s+(?P<PWR_STATUS>\\S+)",
+        "SECTION2": {
+          "START": "Power Supply:",
+          "END": ""
+        },
+        "PATTERN3": "\\d\\s+\\S+-AC-\\S+\\s+\\d+ W\\s+\\d+ W\\s+(?P<PWR_STATUS>\\S+)",
+        "SECTION3": {
+          "START": "Power Supply:",
+          "END": ""
+        },
+        "PATTERN4": "\\d\\s+\\S+\\-PAC\\-\\S+\\s+\\S+\\s+\\S+\\s+\\S+\\s+(?P<PWR_STATUS>\\S+)",
+        "SECTION4": {
+          "START": "Power Supply:",
+          "END": ""
+        }
+      },
+      "CISCO_WLC_CAT": {
+        "PATTERN1": "P\\d\\s+\\S+\\-AC\\-\\S+\\s+(?P<PWR_STATUS>\\S+)(?:, \\S+)?\\s+\\S+",
+        "SECTION1": {
+          "START": "Chassis type:",
+          "END": ""
+        },
+        "PATTERN2": "P\\d\\s+PWR\\-\\S+\\s+(?P<PWR_STATUS>\\S+)\\s+\\S+"
+      },
+      "CISCO_IOS": {
+        "PATTERN1": "\nPower Supply Status: (?P<PWR_STATUS>\\S+)",
+        "PATTERN2": "\\d[AB]\\s+\\S*PWR\\-\\S+\\s+\\S+\\s+(?P<PWR_STATUS>\\S+)\\s+\\S+\\s+\\S+\\s+\\d+"
+      }
+    },
+    "FAN": {
+      "CISCO_XE": {
+        "PATTERN1": "FM\\d\\s+\\S+FAN\\S*\\s+(?P<FAN_STATUS>\\S+)\\s+\\S+",
+        "PATTERN2": "P\\d\\s+\\S+FAN\\S+\\s+(?P<FAN_STATUS>\\S+)\\s+\\S+",
+        "PATTERN3": "  \\d\\s+\\d\\s+\\d+\\s+(?P<FAN_STATUS>\\S+)\\s+Front to Back",
+        "PATTERN4": "  \\d\\s+\\d\\s+\\d+\\s+(?P<FAN_STATUS>\\S+)\nSwitch",
+        "PATTERN5": "Switch \\d FAN \\d is (?P<FAN_STATUS>\\S+)",
+        "PATTERN6": "P\\d\\s+\\S+\\-FAN\\s+(?P<FAN_STATUS>\\S+)\\s+\\S+"
+      },
+      "CISCO_NXOS": {
+        "PATTERN1": "Fan\\d\\(sys_fan\\d\\)\\s+\\S+\\-FAN\\-\\S+\\s+\\S+\\s+(?:back-to-front|front-to-back)\\s+(?P<FAN_STATUS>\\S+)",
+        "SECTION1": {
+          "START": "Fan:",
+          "END": "Power Supply:"
+        },
+        "PATTERN2": "Fan\\d\\(sys_fan\\d\\)\\s+\\S+\\-FAN\\s+\\d.\\d\\s+(?:back-to-front|front-to-back)\\s+(?P<FAN_STATUS>\\S+)",
+        "SECTION2": {
+          "START": "Fan:",
+          "END": "Power Supply:"
+        },
+        "PATTERN3": "Fan\\d\\S+\\s+\\S+\\s+\\d{1,2}.\\d{1,2}\\s+(?P<FAN_STATUS>\\S+) ",
+        "SECTION3": {
+          "START": "Fan:",
+          "END": "Power Supply:"
+        },
+        "PATTERN4": "Fan\\d\\S+\\s+\\S+\\s+\\d{1,2}.\\d{1,2}\\s+\\S+\\s+(?P<FAN_STATUS>\\S+) ",
+        "SECTION4": {
+          "START": "Fan:",
+          "END": "Power Supply:"
+        }
+      },
+      "CISCO_WLC_CAT": {
+        "COMMAND": "",
+        "PATTERN1": "FM\\d\\s+(?P<FAN_STATUS>\\S+)\\s+\\S+\\s+\\S+\\s+\\S+\\s+\\S+",
+        "PATTERN2": "\\d\\s+\\d\\s+\\d+\\s+(?P<FAN_STATUS>\\S+)\\s+Front to Back",
+        "PATTERN3": "P\\d\\s+C9800\\S+FAN\\s+(?P<FAN_STATUS>\\S+)\\s+\\S+"
+      },
+      "CISCO_IOS": {
+        "PATTERN1": "FAN is (?P<FAN_STATUS>\\S+)"
+      }
+    },
+    "TEMP": {
+      "CISCO_XE": {
+        "PATTERN1": "Temp: \\S+\\s+\\S+\\s+(?P<TEMP_STATUS>\\S+)\\s+\\d+ Celsius",
+        "PATTERN2": "SYSTEM \\S+\\s+\\d\\s+(?P<TEMP_STATUS>\\S+)\\s+\\d+ Celsius\\s+\\d - \\d+",
+        "PATTERN3": "Switch \\d: SYSTEM TEMPERATURE is (?P<TEMP_STATUS>\\S+)"
+      },
+      "CISCO_NXOS": {
+        "PATTERN1": "\\d+\\s+\\S+\\s+\\d+\\s+\\d+\\s+\\d+\\s+(?P<TEMP_STATUS>\\S+)",
+        "SECTION1": {
+          "START": "Temperature",
+          "END": "============ END_CONTENTS =============="
+        }
+      },
+      "CISCO_WLC_CAT": {
+        "PATTERN1": "Temp: \\S+\\s+\\S+\\s+(?P<TEMP_STATUS>\\S+)\\s+\\d+ Celsius"
+      },
+      "CISCO_IOS": {
+        "PATTERN1": "Switch \\d: SYSTEM TEMPERATURE is (?P<TEMP_STATUS>\\S+)",
+        "PATTERN2": "SYSTEM TEMPERATURE is (?P<TEMP_STATUS>\\S+)"
+      }
+    },
+    "NTP": {
+      "CISCO_XE": {
+        "PATTERN1": "Clock is (?P<NTP_STATUS>\\S+), stratum \\d+, (?:no )?reference"
+      },
+      "CISCO_NXOS": {
+        "PATTERN1": "Time source is (?P<NTP_STATUS>\\S+)",
+        "SECTION1": {
+          "START": "show clock",
+          "END": "============ END_CONTENTS =============="
+        }
+      },
+      "CISCO_WLC_CAT": {
+        "PATTERN1": "Clock is (?P<NTP_STATUS>\\S+), stratum \\d+, (?:no )?reference"
+      },
+      "CISCO_IOS": {
+        "PATTERN1": "Clock is (?P<NTP_STATUS>\\S+), stratum \\d+, (?:no )?reference"
+      }
     }
   }
 }

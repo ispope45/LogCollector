@@ -43,6 +43,7 @@
 - 응답시간이 긴 Command 는 예외처리
 
 ## 20250828 Collector V2.0(ing)
+- Module 분리
 - Parsing tool과 기능 통합
 - Collector로 수집된 정보만 출력
 - Collector

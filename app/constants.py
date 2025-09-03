@@ -2,7 +2,7 @@ import os
 import sys
 import json
 
-APP_VERSION = "LogCollector V1.7"
+APP_VERSION = "LogCollector V2.0"
 
 
 def resource_path(*parts):
@@ -10,18 +10,21 @@ def resource_path(*parts):
     return os.path.join(base, *parts)
 
 
-FILE_DIR = resource_path("..")  # project root 기준
-TEMPLATE_FILEPATH = resource_path("..", "Data", "Collector_device_template.xlsx")
-ICON_FILEPATH = resource_path("..", "icon.ico")
+ROOT_DIR = resource_path("..")  # project root 기준
+TEMPLATE_FILEPATH = resource_path(ROOT_DIR, "Data", "Collector_device_template.xlsx")
+ICON_FILEPATH = resource_path(ROOT_DIR, "icon.ico")
 
-with open(resource_path("..", "Data", "command.json"), encoding="utf-8") as f:
+with open(resource_path(ROOT_DIR, "Data", "command.json"), encoding="utf-8") as f:
     CMD_JSON = json.load(f)
-with open(resource_path("..", "Data", "parser.json"), encoding="utf-8") as f:
+with open(resource_path(ROOT_DIR, "Data", "parser.json"), encoding="utf-8") as f:
     PARSE_JSON = json.load(f)
 
-INIT_CMD   = CMD_JSON["INIT"]
+
+INIT_CMD = CMD_JSON["INIT"]
 VALID_PARSE = PARSE_JSON["VALID_PARSE"]
-INIT_PARSE  = PARSE_JSON["INIT_PARSE"]
+INIT_PARSE = PARSE_JSON["INIT_PARSE"]
+MAIN_PARSER = PARSE_JSON["PARSE_PATTERN"]
+
 
 DEVICE_FORM = {
     "INDEX":0,"HOSTNAME":1,"IPADDR":2,"PORT":3,
