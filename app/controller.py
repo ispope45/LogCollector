@@ -26,6 +26,7 @@ class AppController:
         self.maximum_task_cnt = 0
         self.current_task_cnt = 0
 
+    # Coupang Parse 적용
     @staticmethod
     def parsing_coupang():
         coupang_parse_template.report(ROOT_DIR)
@@ -91,7 +92,7 @@ class AppController:
             self.view.progress_bar.setValue(100)
             self.logging_text("Collecting finished!")
             time.sleep(10)
-            self.logging_text("Generated Collector Log Summary!")
+
             self.parsing_coupang()
             self.logging_text("Generated Collector Log Summary!")
 

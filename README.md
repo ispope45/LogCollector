@@ -48,4 +48,3 @@
 - Collector로 수집된 정보만 출력
 - Collector
   - Hostname/SN 수집되지 않은 Device 수집하지 않음.
-  - 

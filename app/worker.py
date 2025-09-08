@@ -86,9 +86,15 @@ class Worker(QRunnable):
                 "PLATFORM": platform
             }
 
-            for key in ["VERSION","SERIAL_NUMBER","PID","HOSTNAME"]:
+            for key in ["VERSION", "SERIAL_NUMBER", "PID", "HOSTNAME"]:
                 m = re.search(init_parse[key], init_data)
                 result[key] = m.group(1) if m else ""
+
+                if result[key] == "":
+                    self.signals.log.emit(f"Initial data({key}) not found: {index}_{hostname} ({ipaddr}:{port})")
+                    self.signals.logfile.emit(
+                        f"{index},{hostname},{ipaddr},{port},{username},{password},{enable},{platform},Initial data({key}) not found")
+                    return
 
             for command in commands:
                 tmp = self.execute_command(ssh, command)
@@ -113,7 +119,7 @@ class Worker(QRunnable):
     def execute_command(self, ssh, command, retries=5, delay=2):
         if not command:
             return ""
-        rd_timeout = 300 if command in ["show ap wlan summary","show wireless client summary"] else 60
+        rd_timeout = 300 if command in ["show ap wlan summary", "show wireless client summary"] else 60
         for attempt in range(retries):
             try:
                 return ssh.send_command(command, delay_factor=5, read_timeout=rd_timeout*(attempt+1))
