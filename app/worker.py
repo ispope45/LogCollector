@@ -5,7 +5,7 @@ from PyQt5.QtCore import QThreadPool, QRunnable, pyqtSignal, QObject
 from netmiko import ConnectHandler, ReadTimeout
 from netmiko.exceptions import NetmikoTimeoutException, AuthenticationException, SSHException, ConnectionException
 
-from .constants import CMD_JSON, INIT_CMD, INIT_PARSE, PLATFORM_TO_NETMIKO, DEVICE_FORM
+from .constants import CMD_JSON, INIT_CMD, INIT_PARSE, PLATFORM_TO_NETMIKO, DEVICE_FORM, ROOT_DIR
 
 
 class WorkerSignals(QObject):
@@ -146,7 +146,7 @@ class Worker(QRunnable):
     def make_report(data):
         now = time.localtime()
         cur_date = f"{now.tm_year:04d}{now.tm_mon:02d}{now.tm_mday:02d}"
-        path = os.path.join(os.getcwd(), f"Collector_{cur_date}_{data['INDEX']}_({data['HOSTNAME']})[{data['IPADDR']}].txt")
+        path = os.path.join(ROOT_DIR, f"Collector_{cur_date}_{data['INDEX']}_({data['HOSTNAME']})[{data['IPADDR']}].txt")
         try:
             head = (
                 f"INDEX: {data['INDEX']}\n"

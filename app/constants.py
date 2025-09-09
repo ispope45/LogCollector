@@ -4,19 +4,36 @@ import json
 
 APP_VERSION = "LogCollector V2.0"
 
+#
+# def resource_path(*parts):
+#     if getattr(sys, 'frozen', False):
+#         base = sys._MEIPASS
+#     else:
+#         base = os.path.dirname(os.path.abspath(__file__))
+#     return os.path.join(base, *parts)
+
+#
+# def resource_path(*parts):
+#     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+#     return os.path.join(base, *parts)
+
 
 def resource_path(*parts):
-    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    # 배포(exe): _MEIPASS 아래에 리소스가 풀림
+    if hasattr(sys, "_MEIPASS"):
+        base = sys._MEIPASS
+    else:
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base, *parts)
 
 
-ROOT_DIR = resource_path("..")  # project root 기준
-TEMPLATE_FILEPATH = resource_path(ROOT_DIR, "Data", "Collector_device_template.xlsx")
-ICON_FILEPATH = resource_path(ROOT_DIR, "icon.ico")
+ROOT_DIR = os.getcwd()  # project root 기준
+TEMPLATE_FILEPATH = resource_path("Data", "Collector_device_template.xlsx")
+ICON_FILEPATH = resource_path("icon.ico")
 
-with open(resource_path(ROOT_DIR, "Data", "command.json"), encoding="utf-8") as f:
+with open(resource_path("Data", "command.json"), encoding="utf-8") as f:
     CMD_JSON = json.load(f)
-with open(resource_path(ROOT_DIR, "Data", "parser.json"), encoding="utf-8") as f:
+with open(resource_path("Data", "parser.json"), encoding="utf-8") as f:
     PARSE_JSON = json.load(f)
 
 

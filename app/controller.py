@@ -104,7 +104,7 @@ class AppController:
         now = time.localtime()
         cur_date = f"{now.tm_year:04d}{now.tm_mon:02d}{now.tm_mday:02d}"
         cur_time = f"{now.tm_hour:02d}:{now.tm_min:02d}:{now.tm_sec:02d}"
-        path = os.path.join(os.getcwd(), f"Collector_raw_{cur_date}.log")
+        path = os.path.join(ROOT_DIR, f"Collector_raw_{cur_date}.log")
         try:
             with open(path, "a", encoding="utf-8") as f:
                 f.write(f"{cur_date} {cur_time} msg : {msg}\n")
@@ -115,7 +115,7 @@ class AppController:
     def init_logging():
         now = time.localtime()
         cur_date = f"{now.tm_year:04d}{now.tm_mon:02d}{now.tm_mday:02d}"
-        path = os.path.join(os.getcwd(), f"Collector_Failed_{cur_date}.csv")
+        path = os.path.join(ROOT_DIR, f"Collector_Failed_{cur_date}.csv")
         try:
             with open(path, "w", encoding="utf-8") as f:
                 f.write("DATE,INDEX,HOSTNAME,IPADDR,PORT,USERNAME,PASSWORD,ENABLE,PLATFORM,STATUS,REASON\n")
