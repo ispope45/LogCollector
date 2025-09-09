@@ -4,20 +4,6 @@ import json
 
 APP_VERSION = "LogCollector V2.0"
 
-#
-# def resource_path(*parts):
-#     if getattr(sys, 'frozen', False):
-#         base = sys._MEIPASS
-#     else:
-#         base = os.path.dirname(os.path.abspath(__file__))
-#     return os.path.join(base, *parts)
-
-#
-# def resource_path(*parts):
-#     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
-#     return os.path.join(base, *parts)
-
-
 def resource_path(*parts):
     # 배포(exe): _MEIPASS 아래에 리소스가 풀림
     if hasattr(sys, "_MEIPASS"):

@@ -27,7 +27,8 @@ class AppModel:
         invalid_index = df.query("is_valid == False").index.tolist()
         return invalid_index, df[df["is_valid"]].drop(columns=["is_valid"])
 
-    def validate_row(self, row):
+    @staticmethod
+    def validate_row(row):
         return all([
             bool(re.match(VALID_PARSE["HOSTNAME"], str(row["HOSTNAME"]))),
             bool(re.match(VALID_PARSE["IPADDR"],   str(row["IPADDR"]))),

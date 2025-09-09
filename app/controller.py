@@ -45,7 +45,7 @@ class AppController:
         if not result["res"]:
             self.show_alert("Invalid file format!"); return
 
-        data_list = data[["INDEX","HOSTNAME","IPADDR","PLATFORM"]].values.tolist()
+        data_list = data[["INDEX", "HOSTNAME", "IPADDR", "PLATFORM"]].values.tolist()
         self.view.table_widget.setRowCount(len(data_list))
         for row_idx, row_data in enumerate(data_list):
             self.fill_table_widget(row_data, row_idx)

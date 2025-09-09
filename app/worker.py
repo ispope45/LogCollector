@@ -24,7 +24,7 @@ class Worker(QRunnable):
 
     def run(self):
         index, hostname, ipaddr, port, username, password, enable, platform = (
-            self.data[DEVICE_FORM[k]] for k in ["INDEX","HOSTNAME","IPADDR","PORT","USERNAME","PASSWORD","ENABLE","PLATFORM"]
+            self.data[DEVICE_FORM[k]] for k in ["INDEX", "HOSTNAME", "IPADDR", "PORT", "USERNAME", "PASSWORD", "ENABLE", "PLATFORM"]
         )
 
         commands = CMD_JSON.get(platform, [])
